@@ -17,11 +17,4 @@ This code shows the extracted text before NER then process the text with the spa
 This performs NER using spaCy model and shows output directly in JSON format.
 This zip contains the training data as well. We just need to replace the files location path to re-train using any code file as per wish. 
 
-## Installation
 
-Clone the repository and install the required dependencies:
-
-```bash
-git clone https://github.com/MTalhaa14/NER-for-Invoices/
-cd NER-for-Invoices
-pip install -r requirements.txt
