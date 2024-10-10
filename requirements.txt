@@ -1,0 +1,8 @@
+Required Lib: 
+
+spacy==3.4.1
+paddleocr==2.5.0
+opencv-python==4.5.3.56
+fitz==0.0.1.dev2
+magic==0.4.24
+PyMuPDF==1.18.19
