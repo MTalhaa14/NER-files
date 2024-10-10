@@ -1,0 +1,136 @@
+# How to test this model?
+#Developed By Muhammad Talha Qadri
+
+# Download the zip. Extract the model. AND upload it on google drive and connect drive to colab and use drive path to access this model
+#Run this code and it will print and save the results to local Colab Env
+# Install PaddleOCR and its dependencies
+!pip install paddleocr
+
+# Install PyMuPDF (for PDF processing)
+!pip install PyMuPDF
+
+# Install spaCy for NER
+!pip install spacy
+
+# Install OpenCV for image processing
+!pip install opencv-python-headless
+
+# Install python-magic for file type detection
+!pip install python-magic
+
+# Install Pillow for image handling (optional if dealing with image file formats)
+!pip install Pillow
+
+import os
+import cv2
+import numpy as np
+from paddleocr import PaddleOCR
+import fitz  # PyMuPDF for handling PDFs
+from google.colab import files
+from PIL import Image
+import io
+import magic
+import spacy  # For NER
+import json  # For JSON output
+
+# Load your trained spaCy model (assuming the model is already trained)
+output_dir = '/content/drive/MyDrive/DOM NLP/NER_Model'  # Adjust this path to your model location
+nlp = spacy.load(output_dir)
+
+# Initialize PaddleOCR (English and German support)
+ocr = PaddleOCR(use_angle_cls=True, lang='de')  # 'de' for German, 'en' for English
+
+# Function to extract text from PDF using PyMuPDF and PaddleOCR
+def extract_text_from_pdf(pdf_path):
+    doc = fitz.open(pdf_path)
+    extracted_text = ""
+
+    for page_num in range(doc.page_count):
+        page = doc.load_page(page_num)
+        pix = page.get_pixmap()  # Render PDF page to image
+
+        # Convert Pixmap to numpy array for PaddleOCR
+        img_array = np.frombuffer(pix.samples, dtype=np.uint8).reshape(pix.height, pix.width, pix.n)
+
+        # Use PaddleOCR to extract text from the numpy image array
+        result = ocr.ocr(img_array, cls=True)
+
+        # Append OCR results to extracted_text
+        for line in result:
+            for word_info in line:
+                text = word_info[1][0]
+                extracted_text += text + "\n"
+
+    return extracted_text
+
+# Function to extract text from image using PaddleOCR
+def extract_text_from_image(image_path):
+    # Read the image using OpenCV
+    image = cv2.imread(image_path)
+
+    # Use PaddleOCR to extract text from the image
+    result = ocr.ocr(image, cls=True)
+    extracted_text = ""
+
+    for line in result:
+        for word_info in line:
+            text = word_info[1][0]
+            extracted_text += text + "\n"
+
+    return extracted_text
+
+# Function to perform NER using spaCy model and output in JSON format
+def perform_ner_on_text(extracted_text):
+    doc = nlp(extracted_text)  # Process the text with the spaCy NER model
+
+    # Dictionary to hold the entities
+    entities_json = {}
+
+    # Extract the named entities and their labels
+    for ent in doc.ents:
+        entities_json[ent.text] = ent.label_  # Map entity text to its label
+
+    return entities_json
+
+# Function to handle the uploaded file and decide whether it's a PDF or image
+def handle_uploaded_file(file_path):
+    mime = magic.Magic(mime=True)
+    file_type = mime.from_file(file_path)
+
+    if 'pdf' in file_type:
+        print(f"\nProcessing PDF: {file_path}")
+        pdf_text = extract_text_from_pdf(file_path)
+        ner_results = perform_ner_on_text(pdf_text)
+    elif 'image' in file_type:
+        print(f"\nProcessing Image: {file_path}")
+        image_text = extract_text_from_image(file_path)
+        ner_results = perform_ner_on_text(image_text)
+    else:
+        print(f"\nUnsupported file format for {file_path}. Please upload a PDF or image file.")
+        return
+
+    # Output NER results as JSON
+    output_json = json.dumps(ner_results, indent=4, ensure_ascii=False)
+    print("\nNER Results in JSON:\n", output_json)
+
+    # Save results to a file
+    output_file_path = os.path.splitext(file_path)[0] + '_ner_results.json'
+    with open(output_file_path, 'w', encoding='utf-8') as f:
+        f.write(output_json)
+    print(f"\nNER results saved to {output_file_path}")
+
+
+# Upload file from user
+uploaded_files = files.upload()
+
+# Process each uploaded file
+for filename in uploaded_files.keys():
+    # Save uploaded file to local disk
+    file_path = os.path.join('/content', filename)
+    with open(file_path, 'wb') as f:
+        f.write(uploaded_files[filename])
+
+    # Handle the uploaded file (PDF or image)
+    handle_uploaded_file(file_path)
+
+
